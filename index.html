@@ -659,8 +659,11 @@
   .stat-card {
     background: var(--white);
     border: 1px solid var(--border);
-    padding: 28px 24px;
+    padding: 24px 20px;
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
   .stat-number {
@@ -1298,6 +1301,16 @@
     <div class="top-bar-logo">Lash <span>Alkimim</span></div>
     <div class="top-bar-right">
       <span class="user-greeting" id="client-greeting">Olá!</span>
+      <div id="client-avatar" onclick="document.getElementById('avatar-input').click()"
+           style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--gold-light),var(--gold));
+                  display:flex;align-items:center;justify-content:center;cursor:pointer;
+                  font-size:14px;font-weight:600;color:var(--white);overflow:hidden;
+                  border:2px solid var(--gold);flex-shrink:0;"
+           title="Clique para alterar foto">
+        <span id="avatar-initials"></span>
+        <img id="avatar-img" style="display:none;width:100%;height:100%;object-fit:cover;">
+      </div>
+      <input type="file" id="avatar-input" accept="image/*" style="display:none;" onchange="uploadAvatar(event)">
       <button class="btn-ghost btn-sm" onclick="doLogout()">Sair</button>
     </div>
   </div>
@@ -1358,6 +1371,40 @@
 <!-- ══════════════════════════════════════════
      ADMIN PANEL
 ══════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════
+     VERIFICAÇÃO DE E-MAIL
+══════════════════════════════════════════ -->
+<div id="screen-verify" class="screen">
+  <div class="auth-card" style="text-align:center;">
+    <div class="auth-logo">
+      <div class="logo-name">Lash Alkimim</div>
+    </div>
+
+    <div style="font-size:48px;margin:16px 0;">📧</div>
+
+    <h2 class="auth-title" style="font-size:22px;">Confirme seu e-mail</h2>
+
+    <p style="font-size:14px;color:var(--text-light);line-height:1.7;margin-bottom:28px;">
+      Enviamos um link de confirmação para<br>
+      <strong id="verify-email-display" style="color:var(--text);"></strong><br><br>
+      Acesse seu e-mail e clique no link para ativar sua conta.
+    </p>
+
+    <button class="btn-primary" style="width:100%;margin-bottom:12px;" onclick="checkEmailVerified()">
+      Já confirmei meu e-mail
+    </button>
+
+    <button class="btn-ghost" style="width:100%;margin-bottom:20px;" onclick="resendVerification()">
+      Reenviar e-mail
+    </button>
+
+    <div id="verify-msg" style="display:none;font-size:13px;color:#2D7A3A;margin-bottom:16px;"></div>
+    <div id="verify-error" style="display:none;font-size:13px;color:#C0392B;margin-bottom:16px;"></div>
+
+    <div class="auth-back" onclick="doLogout()">← Sair</div>
+  </div>
+</div>
+
 <div id="screen-admin" class="screen">
   <div class="admin-top-bar top-bar">
     <div class="top-bar-logo">
@@ -1376,7 +1423,10 @@
         <h1>Agendamentos</h1>
         <p>Gerencie todos os agendamentos do studio</p>
       </div>
-      <button class="btn-primary" onclick="openAdminBooking()" style="white-space:nowrap;">+ Novo Agendamento</button>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn-ghost" onclick="exportCSV()" style="white-space:nowrap;">↓ Exportar CSV</button>
+        <button class="btn-primary" onclick="openAdminBooking()" style="white-space:nowrap;">+ Novo Agendamento</button>
+      </div>
     </div>
 
     <!-- Modal novo agendamento admin -->
@@ -1443,6 +1493,39 @@
       <button class="tab-btn" onclick="switchTab('confirmed', this)">Confirmados</button>
       <button class="tab-btn" onclick="switchTab('cancelled', this)">Cancelados</button>
       <button class="tab-btn" onclick="switchView('calendar', this)">📅 Calendário</button>
+      <button class="tab-btn" onclick="switchView('reports', this)">📊 Relatórios</button>
+      <button class="tab-btn" onclick="switchView('services', this)">⚙️ Serviços</button>
+    </div>
+
+    <!-- Painel Relatórios -->
+    <div id="reports-panel" style="display:none;">
+      <div id="reports-content"></div>
+    </div>
+
+    <!-- Painel Serviços -->
+    <div id="services-panel" style="display:none;">
+      <div class="booking-card">
+        <h2>Gerenciar Serviços</h2>
+        <div id="services-list"></div>
+        <div style="margin-top:24px;padding-top:24px;border-top:1px solid var(--border);">
+          <h3 style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:400;margin-bottom:20px;">Adicionar Serviço</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Nome do Serviço</label>
+              <input type="text" id="new-svc-name" class="form-input" placeholder="Ex: Lash Lifting">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Preço (R$)</label>
+              <input type="number" id="new-svc-price" class="form-input" placeholder="Ex: 150">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Descrição</label>
+            <input type="text" id="new-svc-desc" class="form-input" placeholder="Breve descrição do serviço">
+          </div>
+          <button class="btn-primary" onclick="addService()">Adicionar Serviço</button>
+        </div>
+      </div>
     </div>
 
     <!-- Calendário -->
@@ -1689,6 +1772,48 @@ async function doRegister() {
 }
 
 // ══════════════════════════════════════════
+// VERIFICAÇÃO DE E-MAIL
+// ══════════════════════════════════════════
+async function checkEmailVerified() {
+  const msgEl = document.getElementById('verify-msg');
+  const errEl = document.getElementById('verify-error');
+  msgEl.style.display = 'none';
+  errEl.style.display = 'none';
+
+  try {
+    await auth.currentUser.reload();
+    if (auth.currentUser.emailVerified) {
+      msgEl.textContent = '✓ E-mail confirmado! Redirecionando…';
+      msgEl.style.display = 'block';
+      // Dispara o observer novamente
+      setTimeout(() => auth.currentUser.reload(), 800);
+    } else {
+      errEl.textContent = 'E-mail ainda não confirmado. Verifique sua caixa de entrada (e spam).';
+      errEl.style.display = 'block';
+    }
+  } catch(e) {
+    errEl.textContent = 'Erro ao verificar. Tente novamente.';
+    errEl.style.display = 'block';
+  }
+}
+
+async function resendVerification() {
+  const msgEl = document.getElementById('verify-msg');
+  const errEl = document.getElementById('verify-error');
+  msgEl.style.display = 'none';
+  errEl.style.display = 'none';
+
+  try {
+    await auth.currentUser.sendEmailVerification();
+    msgEl.textContent = '✓ E-mail reenviado! Verifique sua caixa de entrada.';
+    msgEl.style.display = 'block';
+  } catch(e) {
+    errEl.textContent = 'Aguarde alguns minutos antes de reenviar.';
+    errEl.style.display = 'block';
+  }
+}
+
+// ══════════════════════════════════════════
 // AUTH — LOGOUT
 // ══════════════════════════════════════════
 async function doLogout() {
@@ -1743,8 +1868,16 @@ auth.onAuthStateChanged(async (fbUser) => {
   const dateInput = document.getElementById('book-date');
   if (dateInput) dateInput.min = new Date().toISOString().slice(0,10);
 
+  // Bloqueia clientes com e-mail não verificado (admin é isento)
+  if (currentUser.role !== 'admin' && !fbUser.emailVerified) {
+    document.getElementById('verify-email-display').textContent = fbUser.email;
+    showScreen('verify');
+    return;
+  }
+
   if (currentUser.role === 'admin') {
     requestNotifPermission();
+    await loadServices();
     subscribeAllBookings();
     subscribeBlockedDays();
     showScreen('admin');
@@ -1761,6 +1894,10 @@ auth.onAuthStateChanged(async (fbUser) => {
 
     // Preencher horários disponíveis (filtra pelo horário atual se for hoje)
     populateTimeSlots();
+
+    // Carrega serviços dinâmicos e avatar
+    await loadServices();
+    initAvatar();
 
     subscribeClientBookings();
     showScreen('client');
@@ -2030,18 +2167,25 @@ function switchView(view, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 
-  const calPanel   = document.getElementById('calendar-panel');
-  const tableWrap  = document.getElementById('table-wrap');
-  const tableFilters = document.getElementById('table-filters');
+  const calPanel      = document.getElementById('calendar-panel');
+  const tableWrap     = document.getElementById('table-wrap');
+  const tableFilters  = document.getElementById('table-filters');
+  const settingsPanel = document.getElementById('settings-panel');
+
+  // Esconde tudo
+  calPanel.style.display     = 'none';
+  tableWrap.style.display    = 'none';
+  tableFilters.style.display = 'none';
+  settingsPanel.style.display= 'none';
 
   if (view === 'calendar') {
     calPanel.style.display = 'block';
-    tableWrap.style.display = 'none';
-    tableFilters.style.display = 'none';
     renderCalendar();
+  } else if (view === 'settings') {
+    settingsPanel.style.display = 'block';
+    renderServicesAdmin();
   } else {
-    calPanel.style.display = 'none';
-    tableWrap.style.display = 'block';
+    tableWrap.style.display    = 'block';
     tableFilters.style.display = 'flex';
     switchTab(view, btn);
   }
@@ -2245,19 +2389,197 @@ function renderAdmin() {
   renderTable();
 }
 
+// Preços dos serviços (pode ser sobrescrito pelo Firestore)
+let SERVICE_PRICES = {
+  'Volume Russo': 180,
+  'Fio a Fio Clássico': 130,
+  'Mega Volume': 220,
+  'Manutenção': 80
+};
+
+let servicesList = Object.entries(SERVICE_PRICES).map(([name, price]) => ({ name, price }));
+
+// ══════════════════════════════════════════
+// SERVIÇOS DINÂMICOS
+// ══════════════════════════════════════════
+async function loadServices() {
+  try {
+    const snap = await db.collection('settings').doc('services').get();
+    if (snap.exists && snap.data().list) {
+      servicesList = snap.data().list;
+      SERVICE_PRICES = {};
+      servicesList.forEach(s => { SERVICE_PRICES[s.name] = s.price; });
+      updateServiceSelects();
+    }
+  } catch(e) { console.error('Erro ao carregar serviços:', e); }
+}
+
+function updateServiceSelects() {
+  const selects = ['book-service', 'adm-service', 'edit-service'];
+  selects.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const current = el.value;
+    if (id === 'book-service') {
+      el.innerHTML = '<option value="">Selecione o serviço</option>' +
+        servicesList.map(s => `<option value="${s.name}">${s.name} — R$ ${s.price}</option>`).join('');
+    } else {
+      el.innerHTML = servicesList.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+    }
+    el.value = current;
+  });
+}
+
+function renderServicesAdmin() {
+  const container = document.getElementById('services-list-admin');
+  container.innerHTML = servicesList.map((s, i) => `
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;">
+      <input type="text" value="${s.name}" class="form-input" style="flex:2;"
+             oninput="servicesList[${i}].name=this.value" placeholder="Nome do serviço">
+      <input type="number" value="${s.price}" class="form-input" style="flex:1;max-width:120px;"
+             oninput="servicesList[${i}].price=Number(this.value)" placeholder="Preço (R$)">
+      <button onclick="removeServiceRow(${i})" style="background:none;border:none;color:#C0392B;font-size:18px;cursor:pointer;padding:0 4px;">✕</button>
+    </div>
+  `).join('');
+}
+
+function addServiceRow() {
+  servicesList.push({ name: '', price: 0 });
+  renderServicesAdmin();
+}
+
+function removeServiceRow(i) {
+  servicesList.splice(i, 1);
+  renderServicesAdmin();
+}
+
+async function saveServices() {
+  const valid = servicesList.filter(s => s.name.trim());
+  if (!valid.length) { showToast('Adicione pelo menos um serviço.'); return; }
+  try {
+    await db.collection('settings').doc('services').set({ list: valid });
+    servicesList = valid;
+    SERVICE_PRICES = {};
+    valid.forEach(s => { SERVICE_PRICES[s.name] = s.price; });
+    updateServiceSelects();
+    showToast('✓ Serviços salvos com sucesso!');
+  } catch(e) {
+    showToast('Erro ao salvar serviços.'); console.error(e);
+  }
+}
+
+// ══════════════════════════════════════════
+// FOTO DE PERFIL (base64 no Firestore)
+// ══════════════════════════════════════════
+function initAvatar() {
+  if (!currentUser) return;
+  const initials = currentUser.name.split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase();
+  document.getElementById('avatar-initials').textContent = initials;
+
+  // Carrega foto salva
+  db.collection('users').doc(currentUser.uid).get().then(snap => {
+    if (snap.exists && snap.data().avatar) {
+      showAvatarImg(snap.data().avatar);
+    }
+  });
+}
+
+function showAvatarImg(src) {
+  const img = document.getElementById('avatar-img');
+  const initials = document.getElementById('avatar-initials');
+  if (img && src) {
+    img.src = src;
+    img.style.display = 'block';
+    if (initials) initials.style.display = 'none';
+  }
+}
+
+async function uploadAvatar(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 500 * 1024) { showToast('Foto muito grande. Máximo 500KB.'); return; }
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const base64 = e.target.result;
+    try {
+      await db.collection('users').doc(currentUser.uid).update({ avatar: base64 });
+      showAvatarImg(base64);
+      showToast('✓ Foto atualizada!');
+    } catch(err) {
+      showToast('Erro ao salvar foto.'); console.error(err);
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
 function renderStats() {
+  const now        = new Date();
+  const todayStr   = now.toISOString().slice(0,10);
+  const thisMonth  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
   const total      = allBookings.length;
   const pending    = allBookings.filter(b => b.status === 'pending').length;
   const confirmed  = allBookings.filter(b => b.status === 'confirmed').length;
-  const todayStr   = new Date().toISOString().slice(0,10);
   const todayCount = allBookings.filter(b => b.date === todayStr).length;
+
+  // Faturamento estimado do mês (confirmados)
+  const monthConfirmed = allBookings.filter(b =>
+    b.status === 'confirmed' && b.date && b.date.startsWith(thisMonth)
+  );
+  const faturamento = monthConfirmed.reduce((sum, b) =>
+    sum + (SERVICE_PRICES[b.service] || 0), 0
+  );
+
+  // Serviço mais agendado
+  const serviceCounts = {};
+  allBookings.filter(b => b.status !== 'cancelled').forEach(b => {
+    serviceCounts[b.service] = (serviceCounts[b.service] || 0) + 1;
+  });
+  const topService = Object.entries(serviceCounts)
+    .sort((a,b) => b[1]-a[1])[0];
 
   document.getElementById('admin-stats').innerHTML = `
     <div class="stat-card"><div class="stat-number">${total}</div><div class="stat-label">Total</div></div>
     <div class="stat-card"><div class="stat-number">${confirmed}</div><div class="stat-label">Confirmados</div></div>
     <div class="stat-card"><div class="stat-number">${pending}</div><div class="stat-label">Pendentes</div></div>
     <div class="stat-card"><div class="stat-number">${todayCount}</div><div class="stat-label">Hoje</div></div>
+    <div class="stat-card">
+      <div class="stat-number" style="font-size:28px;">R$${faturamento.toLocaleString('pt-BR')}</div>
+      <div class="stat-label">Faturamento do Mês</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" style="font-size:16px;margin-top:8px;">${topService ? topService[0] : '—'}</div>
+      <div class="stat-label" style="margin-top:6px;">Serviço Mais Popular${topService ? ` · ${topService[1]}x` : ''}</div>
+    </div>
   `;
+}
+
+function exportCSV() {
+  const headers = ['Cliente','Telefone','E-mail','Serviço','Data','Horário','Status','Observações'];
+  const rows = allBookings.map(b => [
+    b.clientName || '',
+    b.clientPhone || '',
+    b.clientEmail || '',
+    b.service || '',
+    b.date || '',
+    b.time || '',
+    statusLabel(b.status),
+    b.notes || ''
+  ]);
+
+  const csv = [headers, ...rows]
+    .map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))
+    .join('\n');
+
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `lash-alkimim-agendamentos-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✓ Exportado com sucesso!');
 }
 
 function renderTable() {
