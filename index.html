@@ -2345,7 +2345,7 @@ function onPkgDateChange(slot) {
   const dateVal = document.getElementById(`pkg-date-${slot}`).value;
   if (!dateVal) return;
 
-  // Popula horários do slot
+  // Popula horários do slot (excluindo os já usados nos outros slots)
   populatePkgTimeSlots(slot, dateVal);
   document.getElementById(`pkg-step-${slot}`).classList.add('done');
 
@@ -2355,10 +2355,9 @@ function onPkgDateChange(slot) {
     const limit = new Date(d1); limit.setDate(d1.getDate() + 35);
     const limitStr = limit.toISOString().slice(0,10);
 
-    // Habilita slot 2 com min = data1+1 e max = data1+35
+    // Slot 2: qualquer dia dentro dos 35 dias (pode ser o mesmo dia, horário diferente)
     const date2 = document.getElementById('pkg-date-2');
-    const d1plus1 = new Date(d1); d1plus1.setDate(d1.getDate() + 1);
-    date2.min = d1plus1.toISOString().slice(0,10);
+    date2.min = dateVal; // pode ser o mesmo dia
     date2.max = limitStr;
     date2.disabled = false;
     date2.value = '';
@@ -2384,11 +2383,9 @@ function onPkgDateChange(slot) {
     const d1Val = document.getElementById('pkg-date-1').value;
     const d1    = new Date(d1Val + 'T12:00:00');
     const limit = new Date(d1); limit.setDate(d1.getDate() + 35);
-    const d2    = new Date(dateVal + 'T12:00:00');
 
     const date3 = document.getElementById('pkg-date-3');
-    const d2plus1 = new Date(d2); d2plus1.setDate(d2.getDate() + 1);
-    date3.min = d2plus1.toISOString().slice(0,10);
+    date3.min = dateVal; // pode ser o mesmo dia
     date3.max = limit.toISOString().slice(0,10);
     date3.disabled = false;
     date3.value = '';
@@ -2403,26 +2400,37 @@ function populatePkgTimeSlots(slot, dateVal) {
 
   const [y, m, d] = dateVal.split('-').map(Number);
   const dow   = new Date(y, m - 1, d).getDay();
-  const slots = BUSINESS_HOURS[dow] || [];
+  const allSlots = BUSINESS_HOURS[dow] || [];
 
-  if (!slots.length) {
+  if (!allSlots.length) {
     timeSelect.innerHTML = '<option value="">Fechado neste dia</option>';
     return;
   }
+
+  // Pega horários já escolhidos nos outros slots no mesmo dia
+  const usedTimes = [];
+  [1,2,3].filter(s => s !== slot).forEach(s => {
+    const otherDate = document.getElementById(`pkg-date-${s}`).value;
+    const otherTime = document.getElementById(`pkg-time-${s}`).value;
+    if (otherDate === dateVal && otherTime) usedTimes.push(otherTime);
+  });
 
   const now = new Date();
   const isToday = dateVal === now.toISOString().slice(0,10);
   const nowMin  = now.getHours() * 60 + now.getMinutes() + 60;
 
-  slots.forEach(s => {
+  let added = 0;
+  allSlots.forEach(s => {
     const [h, mi] = s.split(':').map(Number);
     if (isToday && h*60+mi <= nowMin) return;
+    if (usedTimes.includes(s)) return; // horário já usado em outro slot
     const opt = document.createElement('option');
     opt.value = s; opt.textContent = s;
     timeSelect.appendChild(opt);
+    added++;
   });
 
-  if (timeSelect.options.length === 1)
+  if (added === 0)
     timeSelect.innerHTML = '<option value="">Sem horários disponíveis</option>';
 }
 
@@ -2440,18 +2448,26 @@ async function doPackageBooking() {
     slots.push({ date, time });
   }
 
+  // Valida que não há data+hora duplicada entre os próprios slots
+  const combos = slots.map(s => `${s.date}_${s.time}`);
+  if (new Set(combos).size !== combos.length) {
+    showToast('⚠️ Duas sessões não podem ter a mesma data e horário.'); return;
+  }
+
+  // Busca dias bloqueados uma vez só
+  const snapBlock = await db.collection('settings').doc('blockedDays').get();
+  const blocked = snapBlock.exists ? (snapBlock.data().days || {}) : {};
+
   // Verifica conflitos nos 3 slots
   for (let i = 0; i < slots.length; i++) {
     const { date, time } = slots[i];
 
     // Dia bloqueado
-    const snapBlock = await db.collection('settings').doc('blockedDays').get();
-    const blocked = snapBlock.exists ? (snapBlock.data().days || {}) : {};
     if (blocked[date]) {
       showToast(`⚠️ O dia da ${i+1}ª sessão está bloqueado. Escolha outro.`); return;
     }
 
-    // Conflito de horário
+    // Conflito com agendamentos existentes no Firestore
     const conflict = await db.collection('bookings')
       .where('date', '==', date)
       .where('time', '==', time)
