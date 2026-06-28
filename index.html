@@ -1016,6 +1016,89 @@
     font-size: 12px; color: var(--text-light);
   }
 
+  /* ══ PACOTE ══ */
+  .package-flow {
+    background: var(--white);
+    border: 1px solid var(--gold);
+    padding: 36px 40px;
+    box-shadow: 0 4px 32px rgba(201,169,110,0.15);
+    margin-bottom: 24px;
+    animation: fadeUp 0.4s ease;
+  }
+
+  .package-flow h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 24px;
+    font-weight: 400;
+    margin-bottom: 6px;
+  }
+
+  .package-flow .pkg-sub {
+    font-size: 13px;
+    color: var(--text-light);
+    margin-bottom: 28px;
+  }
+
+  .pkg-slot {
+    background: var(--off-white);
+    border: 1px solid var(--border);
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .pkg-slot-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .pkg-slot-num {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, var(--gold-light), var(--gold));
+    color: var(--white);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; flex-shrink: 0;
+  }
+
+  .pkg-slot-label {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-light);
+  }
+
+  .pkg-deadline {
+    background: linear-gradient(135deg, #FFF8EC, #FFF2D8);
+    border: 1px solid var(--gold-light);
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--gold-dark);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .pkg-progress {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+
+  .pkg-progress-step {
+    flex: 1;
+    height: 4px;
+    background: var(--cream);
+    border-radius: 2px;
+    transition: background 0.3s;
+  }
+
+  .pkg-progress-step.done { background: var(--gold); }
+
   /* Modal de edição */
   .edit-modal-overlay {
     position: fixed;
@@ -1326,12 +1409,12 @@
       <span>✓ Agendamento realizado com sucesso! Entraremos em contato para confirmar.</span>
     </div>
 
-    <div class="booking-card">
+    <div class="booking-card" id="normal-booking-card">
       <h2>Novo Agendamento</h2>
 
       <div class="form-group">
         <label class="form-label">Serviço</label>
-        <select id="book-service" class="form-select">
+        <select id="book-service" class="form-select" onchange="onServiceChange()">
           <option value="">Selecione o serviço</option>
           <option value="Volume Russo">Volume Russo — R$ 180</option>
           <option value="Fio a Fio Clássico">Fio a Fio Clássico — R$ 130</option>
@@ -1359,6 +1442,86 @@
       </div>
 
       <button class="btn-primary" onclick="doBooking()">Confirmar Agendamento</button>
+    </div>
+
+    <!-- Fluxo especial de pacote -->
+    <div id="package-flow-card" class="package-flow" style="display:none;">
+      <h2>✨ <span id="pkg-title"></span></h2>
+      <p class="pkg-sub">Escolha 3 datas para suas manutenções gratuitas</p>
+
+      <div class="pkg-deadline" id="pkg-deadline" style="display:none;">
+        📅 As sessões devem ser realizadas dentro de <strong>35 dias</strong> a partir da primeira data escolhida.
+      </div>
+
+      <div class="pkg-progress">
+        <div class="pkg-progress-step" id="pkg-step-1"></div>
+        <div class="pkg-progress-step" id="pkg-step-2"></div>
+        <div class="pkg-progress-step" id="pkg-step-3"></div>
+      </div>
+
+      <!-- Slot 1 -->
+      <div class="pkg-slot">
+        <div class="pkg-slot-header">
+          <div class="pkg-slot-num">1</div>
+          <div class="pkg-slot-label">1ª Manutenção</div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Data</label>
+            <input type="date" id="pkg-date-1" class="form-input" onchange="onPkgDateChange(1)">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Horário</label>
+            <select id="pkg-time-1" class="form-select"><option value="">Selecione a data</option></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slot 2 -->
+      <div class="pkg-slot">
+        <div class="pkg-slot-header">
+          <div class="pkg-slot-num">2</div>
+          <div class="pkg-slot-label">2ª Manutenção</div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Data</label>
+            <input type="date" id="pkg-date-2" class="form-input" onchange="onPkgDateChange(2)" disabled>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Horário</label>
+            <select id="pkg-time-2" class="form-select"><option value="">Selecione a data</option></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slot 3 -->
+      <div class="pkg-slot">
+        <div class="pkg-slot-header">
+          <div class="pkg-slot-num">3</div>
+          <div class="pkg-slot-label">3ª Manutenção</div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Data</label>
+            <input type="date" id="pkg-date-3" class="form-input" onchange="onPkgDateChange(3)" disabled>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Horário</label>
+            <select id="pkg-time-3" class="form-select"><option value="">Selecione a data</option></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:8px;">
+        <label class="form-label">Observações (opcional)</label>
+        <input type="text" id="pkg-notes" class="form-input" placeholder="Alergia, preferência, dúvidas…">
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:4px;">
+        <button class="btn-primary" onclick="doPackageBooking()">Confirmar Pacote</button>
+        <button class="btn-ghost" onclick="cancelPackageFlow()">Cancelar</button>
+      </div>
     </div>
 
     <div class="appts-card">
@@ -1930,15 +2093,66 @@ function renderClientAppts(list) {
     return;
   }
 
-  el.innerHTML = list.map(b => `
-    <div class="appt-item">
-      <div class="appt-info">
-        <h4>${b.service}</h4>
-        <p>${formatDate(b.date)} às ${b.time}${b.notes ? ' · ' + b.notes : ''}</p>
+  // Agrupa pacotes
+  const packages = {};
+  const normal   = [];
+  list.forEach(b => {
+    if (b.packageId) {
+      if (!packages[b.packageId]) packages[b.packageId] = [];
+      packages[b.packageId].push(b);
+    } else {
+      normal.push(b);
+    }
+  });
+
+  let html = '';
+
+  // Pacotes agrupados
+  Object.values(packages).forEach(pkgSlots => {
+    pkgSlots.sort((a,b) => a.sessionNum - b.sessionNum);
+    const first  = pkgSlots[0];
+    const allSts = pkgSlots.every(s => s.status === 'confirmed') ? 'confirmed'
+                 : pkgSlots.some(s => s.status === 'cancelled') ? 'cancelled' : 'pending';
+    html += `
+      <div class="appt-item" style="flex-direction:column;align-items:flex-start;gap:10px;">
+        <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
+          <div>
+            <h4 style="display:flex;align-items:center;gap:8px;">
+              ✨ ${first.packageName}
+              <span style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+                           color:var(--gold-dark);background:var(--off-white);
+                           border:1px solid var(--border);padding:2px 8px;">Pacote</span>
+            </h4>
+            <p>${first.notes ? first.notes : ''}</p>
+          </div>
+          <span class="appt-badge badge-${allSts}">${statusLabel(allSts)}</span>
+        </div>
+        ${pkgSlots.map(s => `
+          <div style="display:flex;gap:12px;align-items:center;padding:8px 12px;
+                      background:var(--off-white);border:1px solid var(--border);width:100%;">
+            <span style="font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--gold);min-width:24px;">${s.sessionNum}</span>
+            <span style="font-size:13px;">${formatDate(s.date)} às ${s.time}</span>
+            <span class="appt-badge badge-${s.status}" style="margin-left:auto;">${statusLabel(s.status)}</span>
+          </div>
+        `).join('')}
       </div>
-      <span class="appt-badge badge-${b.status}">${statusLabel(b.status)}</span>
-    </div>
-  `).join('');
+    `;
+  });
+
+  // Agendamentos normais
+  normal.forEach(b => {
+    html += `
+      <div class="appt-item">
+        <div class="appt-info">
+          <h4>${b.service}</h4>
+          <p>${formatDate(b.date)} às ${b.time}${b.notes ? ' · ' + b.notes : ''}</p>
+        </div>
+        <span class="appt-badge badge-${b.status}">${statusLabel(b.status)}</span>
+      </div>
+    `;
+  });
+
+  el.innerHTML = html;
 }
 
 // ══════════════════════════════════════════
@@ -2077,6 +2291,211 @@ function populateTimeSlots() {
 
   if (timeSelect.options.length === 1) {
     timeSelect.innerHTML = '<option value="">Sem horários disponíveis</option>';
+  }
+}
+
+// ══════════════════════════════════════════
+// PACOTES
+// ══════════════════════════════════════════
+const PACKAGE_NAMES = ['pacote egipcio', 'pacote brasileiro', 'pacote egípcio', 'pacote egipcio', 'pacote egípcio'];
+
+function isPackage(serviceName) {
+  return PACKAGE_NAMES.some(p => serviceName.toLowerCase().includes(p.replace('pacote ', '')));
+}
+
+function onServiceChange() {
+  const service = document.getElementById('book-service').value;
+  const normalCard  = document.getElementById('normal-booking-card');
+  const packageCard = document.getElementById('package-flow-card');
+
+  if (service && isPackage(service)) {
+    // Mostra fluxo de pacote
+    normalCard.style.display  = 'none';
+    packageCard.style.display = 'block';
+    document.getElementById('pkg-title').textContent = service.split(' — ')[0];
+
+    // Reset slots
+    for (let i = 1; i <= 3; i++) {
+      document.getElementById(`pkg-date-${i}`).value = '';
+      document.getElementById(`pkg-time-${i}`).innerHTML = '<option value="">Selecione a data</option>';
+      document.getElementById(`pkg-date-${i}`).disabled = i > 1;
+      document.getElementById(`pkg-step-${i}`).classList.remove('done');
+    }
+    document.getElementById('pkg-deadline').style.display = 'none';
+    document.getElementById('pkg-notes').value = '';
+
+    // Min date = hoje
+    const today = new Date().toISOString().slice(0,10);
+    document.getElementById('pkg-date-1').min = today;
+
+    packageCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } else {
+    normalCard.style.display  = 'block';
+    packageCard.style.display = 'none';
+  }
+}
+
+function cancelPackageFlow() {
+  document.getElementById('book-service').value = '';
+  document.getElementById('normal-booking-card').style.display = 'block';
+  document.getElementById('package-flow-card').style.display   = 'none';
+}
+
+function onPkgDateChange(slot) {
+  const dateVal = document.getElementById(`pkg-date-${slot}`).value;
+  if (!dateVal) return;
+
+  // Popula horários do slot
+  populatePkgTimeSlots(slot, dateVal);
+  document.getElementById(`pkg-step-${slot}`).classList.add('done');
+
+  // Slot 1: define prazo e habilita slot 2
+  if (slot === 1) {
+    const d1    = new Date(dateVal + 'T12:00:00');
+    const limit = new Date(d1); limit.setDate(d1.getDate() + 35);
+    const limitStr = limit.toISOString().slice(0,10);
+
+    // Habilita slot 2 com min = data1+1 e max = data1+35
+    const date2 = document.getElementById('pkg-date-2');
+    const d1plus1 = new Date(d1); d1plus1.setDate(d1.getDate() + 1);
+    date2.min = d1plus1.toISOString().slice(0,10);
+    date2.max = limitStr;
+    date2.disabled = false;
+    date2.value = '';
+    document.getElementById('pkg-time-2').innerHTML = '<option value="">Selecione a data</option>';
+
+    // Reset slot 3
+    const date3 = document.getElementById('pkg-date-3');
+    date3.disabled = true;
+    date3.value = '';
+    document.getElementById('pkg-time-3').innerHTML = '<option value="">Selecione a data</option>';
+    document.getElementById('pkg-step-2').classList.remove('done');
+    document.getElementById('pkg-step-3').classList.remove('done');
+
+    // Mostra prazo
+    const fmt = d => d.toLocaleDateString('pt-BR');
+    document.getElementById('pkg-deadline').style.display = 'flex';
+    document.getElementById('pkg-deadline').innerHTML =
+      `📅 As 3 sessões devem ser realizadas entre <strong>${fmt(d1)}</strong> e <strong>${fmt(limit)}</strong>.`;
+  }
+
+  // Slot 2: habilita slot 3
+  if (slot === 2) {
+    const d1Val = document.getElementById('pkg-date-1').value;
+    const d1    = new Date(d1Val + 'T12:00:00');
+    const limit = new Date(d1); limit.setDate(d1.getDate() + 35);
+    const d2    = new Date(dateVal + 'T12:00:00');
+
+    const date3 = document.getElementById('pkg-date-3');
+    const d2plus1 = new Date(d2); d2plus1.setDate(d2.getDate() + 1);
+    date3.min = d2plus1.toISOString().slice(0,10);
+    date3.max = limit.toISOString().slice(0,10);
+    date3.disabled = false;
+    date3.value = '';
+    document.getElementById('pkg-time-3').innerHTML = '<option value="">Selecione a data</option>';
+    document.getElementById('pkg-step-3').classList.remove('done');
+  }
+}
+
+function populatePkgTimeSlots(slot, dateVal) {
+  const timeSelect = document.getElementById(`pkg-time-${slot}`);
+  timeSelect.innerHTML = '<option value="">Selecione</option>';
+
+  const [y, m, d] = dateVal.split('-').map(Number);
+  const dow   = new Date(y, m - 1, d).getDay();
+  const slots = BUSINESS_HOURS[dow] || [];
+
+  if (!slots.length) {
+    timeSelect.innerHTML = '<option value="">Fechado neste dia</option>';
+    return;
+  }
+
+  const now = new Date();
+  const isToday = dateVal === now.toISOString().slice(0,10);
+  const nowMin  = now.getHours() * 60 + now.getMinutes() + 60;
+
+  slots.forEach(s => {
+    const [h, mi] = s.split(':').map(Number);
+    if (isToday && h*60+mi <= nowMin) return;
+    const opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    timeSelect.appendChild(opt);
+  });
+
+  if (timeSelect.options.length === 1)
+    timeSelect.innerHTML = '<option value="">Sem horários disponíveis</option>';
+}
+
+async function doPackageBooking() {
+  const service = document.getElementById('book-service').value.split(' — ')[0];
+  const notes   = document.getElementById('pkg-notes').value.trim();
+
+  const slots = [];
+  for (let i = 1; i <= 3; i++) {
+    const date = document.getElementById(`pkg-date-${i}`).value;
+    const time = document.getElementById(`pkg-time-${i}`).value;
+    if (!date || !time) {
+      showToast(`Preencha a data e horário da ${i}ª sessão.`); return;
+    }
+    slots.push({ date, time });
+  }
+
+  // Verifica conflitos nos 3 slots
+  for (let i = 0; i < slots.length; i++) {
+    const { date, time } = slots[i];
+
+    // Dia bloqueado
+    const snapBlock = await db.collection('settings').doc('blockedDays').get();
+    const blocked = snapBlock.exists ? (snapBlock.data().days || {}) : {};
+    if (blocked[date]) {
+      showToast(`⚠️ O dia da ${i+1}ª sessão está bloqueado. Escolha outro.`); return;
+    }
+
+    // Conflito de horário
+    const conflict = await db.collection('bookings')
+      .where('date', '==', date)
+      .where('time', '==', time)
+      .where('status', 'in', ['pending', 'confirmed'])
+      .get();
+    if (!conflict.empty) {
+      showToast(`⚠️ Horário da ${i+1}ª sessão já está ocupado. Escolha outro.`); return;
+    }
+  }
+
+  // Salva pacote como grupo
+  const packageId = 'pkg_' + Date.now();
+  const batch = db.batch();
+
+  slots.forEach((slot, i) => {
+    const ref = db.collection('bookings').doc();
+    batch.set(ref, {
+      userId:      currentUser.uid,
+      clientName:  currentUser.name,
+      clientEmail: currentUser.email,
+      clientPhone: currentUser.phone || '',
+      service:     `${service} — Sessão ${i+1}/3`,
+      date:        slot.date,
+      time:        slot.time,
+      notes:       i === 0 ? notes : '',
+      status:      'pending',
+      packageId,
+      packageName: service,
+      sessionNum:  i + 1,
+      createdAt:   firebase.firestore.FieldValue.serverTimestamp()
+    });
+  });
+
+  try {
+    await batch.commit();
+
+    // Reset
+    cancelPackageFlow();
+    document.getElementById('booking-success').classList.add('show');
+    setTimeout(() => document.getElementById('booking-success').classList.remove('show'), 6000);
+    showToast('✨ Pacote agendado com sucesso!');
+  } catch(e) {
+    showToast('Erro ao agendar pacote. Tente novamente.');
+    console.error(e);
   }
 }
 
