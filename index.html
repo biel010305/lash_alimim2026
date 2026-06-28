@@ -2438,6 +2438,7 @@ async function doPackageBooking() {
   const service = document.getElementById('book-service').value.split(' — ')[0];
   const notes   = document.getElementById('pkg-notes').value.trim();
 
+  // Coleta os 3 slots
   const slots = [];
   for (let i = 1; i <= 3; i++) {
     const date = document.getElementById(`pkg-date-${i}`).value;
@@ -2448,77 +2449,78 @@ async function doPackageBooking() {
     slots.push({ date, time });
   }
 
-  // Valida que não há data+hora duplicada entre os próprios slots
+  // Valida duplicatas entre os próprios slots
   const combos = slots.map(s => `${s.date}_${s.time}`);
   if (new Set(combos).size !== combos.length) {
     showToast('⚠️ Duas sessões não podem ter a mesma data e horário.'); return;
   }
 
-  // Busca dias bloqueados uma vez só
-  const snapBlock = await db.collection('settings').doc('blockedDays').get();
-  const blocked = snapBlock.exists ? (snapBlock.data().days || {}) : {};
-
-  // Verifica conflitos nos 3 slots
-  for (let i = 0; i < slots.length; i++) {
-    const { date, time } = slots[i];
-
-    // Dia bloqueado
-    if (blocked[date]) {
-      showToast(`⚠️ O dia da ${i+1}ª sessão está bloqueado. Escolha outro.`); return;
-    }
-
-    // Conflito com agendamentos existentes no Firestore
-    try {
-      const conflict = await db.collection('bookings')
-        .where('date', '==', date)
-        .where('time', '==', time)
-        .get();
-      const occupied = conflict.docs.some(d => {
-        const s = d.data().status;
-        return s === 'pending' || s === 'confirmed';
-      });
-      if (occupied) {
-        showToast(`⚠️ Horário da ${i+1}ª sessão já está ocupado. Escolha outro.`); return;
-      }
-    } catch(e) {
-      console.error('Erro ao verificar conflito:', e);
-    }
-  }
-
-  // Salva pacote como grupo
-  const packageId = 'pkg_' + Date.now();
-  const batch = db.batch();
-
-  slots.forEach((slot, i) => {
-    const ref = db.collection('bookings').doc();
-    batch.set(ref, {
-      userId:      currentUser.uid,
-      clientName:  currentUser.name,
-      clientEmail: currentUser.email,
-      clientPhone: currentUser.phone || '',
-      service:     `${service} — Sessão ${i+1}/3`,
-      date:        slot.date,
-      time:        slot.time,
-      notes:       i === 0 ? notes : '',
-      status:      'pending',
-      packageId,
-      packageName: service,
-      sessionNum:  i + 1,
-      createdAt:   firebase.firestore.FieldValue.serverTimestamp()
-    });
-  });
+  showToast('⏳ Verificando disponibilidade...');
 
   try {
+    // Busca dias bloqueados
+    let blocked = {};
+    try {
+      const snapBlock = await db.collection('settings').doc('blockedDays').get();
+      blocked = snapBlock.exists ? (snapBlock.data().days || {}) : {};
+    } catch(e) { /* ignora erro de permissão */ }
+
+    // Verifica cada slot
+    for (let i = 0; i < slots.length; i++) {
+      const { date, time } = slots[i];
+
+      if (blocked[date]) {
+        showToast(`⚠️ Dia da ${i+1}ª sessão está bloqueado.`); return;
+      }
+
+      // Busca agendamentos do mesmo dia (sem where duplo para evitar índice)
+      const snapDay = await db.collection('bookings')
+        .where('date', '==', date)
+        .get();
+
+      const occupied = snapDay.docs.some(doc => {
+        const b = doc.data();
+        return b.time === time && (b.status === 'pending' || b.status === 'confirmed');
+      });
+
+      if (occupied) {
+        showToast(`⚠️ Horário da ${i+1}ª sessão já está ocupado.`); return;
+      }
+    }
+
+    // Salva os 3 agendamentos em batch
+    const packageId = 'pkg_' + Date.now();
+    const batch = db.batch();
+
+    slots.forEach((slot, i) => {
+      const ref = db.collection('bookings').doc();
+      batch.set(ref, {
+        userId:      currentUser.uid,
+        clientName:  currentUser.name,
+        clientEmail: currentUser.email || '',
+        clientPhone: currentUser.phone || '',
+        service:     `${service} — Sessão ${i+1}/3`,
+        date:        slot.date,
+        time:        slot.time,
+        notes:       i === 0 ? notes : '',
+        status:      'pending',
+        packageId,
+        packageName: service,
+        sessionNum:  i + 1,
+        createdAt:   firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+
     await batch.commit();
 
-    // Reset
     cancelPackageFlow();
     document.getElementById('booking-success').classList.add('show');
     setTimeout(() => document.getElementById('booking-success').classList.remove('show'), 6000);
     showToast('✨ Pacote agendado com sucesso!');
+
   } catch(e) {
-    showToast('Erro ao agendar pacote. Tente novamente.');
-    console.error(e);
+    console.error('Erro ao agendar pacote:', e);
+    showToast('Erro ao agendar. Tente novamente.');
   }
 }
 
